@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Application FlorBIM</Name>
+    <Assembly>FlorBIM.dll</Assembly>
+    <FullClassName>FlorBIM.App</FullClassName>
+    <ClientId>B064E685-A46A-4F9B-ABDA-6E75B512D09A</ClientId>
+    <VendorId>FlorBIM</VendorId>
+    <VendorDescription>www.FlorBIM.com</VendorDescription>
+  </AddIn>
+</RevitAddIns>
