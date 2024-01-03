@@ -163,6 +163,7 @@ namespace FlorBIM
                 }
             }
 
+            // test
             foreach (Autodesk.Revit.DB.Line item in longCurves)
             {
                 XYZ mid = item.Evaluate(0.5, true);
