@@ -81,5 +81,10 @@ namespace FlorBIM
         {
             MakeRequest(RequestId.CreateBeam);
         }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            MakeRequest(RequestId.CreateDeck);
+        }
     }
 }

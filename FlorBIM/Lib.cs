@@ -60,5 +60,20 @@ namespace FlorBIM
 
             return list;
         }
+
+        public static Autodesk.Revit.DB.Line GetExtentionLine(Curve c, double length)
+        {
+            XYZ vector = (c.GetEndPoint(1) - c.GetEndPoint(0)).Normalize();
+            XYZ pp1 = c.GetEndPoint(0);
+            XYZ pp2 = c.GetEndPoint(1);
+
+            XYZ exp1 = new XYZ(pp1.X +(length * -vector.X), pp1.Y + (length* -vector.Y), pp1.Z);
+            XYZ exp2 = new XYZ(pp2.X + (length * vector.X), pp2.Y + (length * vector.Y), pp1.Z);
+
+            Autodesk.Revit.DB.Line exLine = Autodesk.Revit.DB.Line.CreateBound(exp1, exp2);
+
+            return exLine;
+
+        }
     }
 }

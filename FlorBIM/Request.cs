@@ -7,7 +7,8 @@ namespace FlorBIM
     {
         None = 0,
         count = 1,
-        CreateBeam =2 
+        CreateBeam =2,
+        CreateDeck = 3
 
     }
 

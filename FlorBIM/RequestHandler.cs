@@ -65,6 +65,11 @@ namespace FlorBIM
                             _CreateBeam(uiapp);
                             break;
                         }
+                    case RequestId.CreateDeck:
+                        {
+                            _CreateDeck(uiapp);
+                            break;
+                        }
                 }
             }
             finally
@@ -137,25 +142,25 @@ namespace FlorBIM
             foreach (Entity item in all)
             {
                 ACadSharp.ObjectType obj = item.ObjectType;
-                if(obj == ACadSharp.ObjectType.TEXT)
+                if (obj == ACadSharp.ObjectType.TEXT)
                 {
                     TextEntity tn = item as TextEntity;
-                    if(tn != null)
+                    if (tn != null)
                     {
                         string textname = tn.Value;
-                        XYZ p1 = new XYZ(tn.InsertPoint.X, tn.InsertPoint.Y, tn.InsertPoint.Z)/304.8;
+                        XYZ p1 = new XYZ(tn.InsertPoint.X, tn.InsertPoint.Y, tn.InsertPoint.Z) / 304.8;
                         dix.Add(p1, textname);
                     }
                 }
 
-                else if(obj == ACadSharp.ObjectType.LINE)
+                else if (obj == ACadSharp.ObjectType.LINE)
                 {
                     ACadSharp.Entities.Line line = item as ACadSharp.Entities.Line;
                     Autodesk.Revit.DB.Line getline = CovertRevitLine(line);
                     if (getline == null) continue;
-                    else if(getline != null)
+                    else if (getline != null)
                     {
-                        if(getline.Length * 304.8 > 801)
+                        if (getline.Length * 304.8 > 801)
                         {
                             longCurves.Add(getline);
                         }
@@ -176,10 +181,10 @@ namespace FlorBIM
 
                 if (fs == null) continue;
 
-                using(Transaction trans = new Transaction(m_doc, "createBeam"))
+                using (Transaction trans = new Transaction(m_doc, "createBeam"))
                 {
                     trans.Start();
-                    if(fs != null)
+                    if (fs != null)
                     {
                         fs.Activate();
                         FamilyInstance fi = m_doc.Create.NewFamilyInstance(item, fs, m_doc.ActiveView.GenLevel, StructuralType.Beam);
@@ -204,12 +209,93 @@ namespace FlorBIM
                 revitline = Autodesk.Revit.DB.Line.CreateBound(pp1, pp2);
 
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 MessageBox.Show(e.Message);
             }
 
             return revitline;
+        }
+
+        private void _CreateDeck(UIApplication uiapp)
+        {
+            UIDocument uidoc = uiapp.ActiveUIDocument;
+            m_uidoc = uidoc;
+            m_doc = m_uidoc.Document;
+            Autodesk.Revit.ApplicationServices.Application app = uiapp.Application;
+
+            //객체를 선택하기...
+            IList<Reference> refs = uidoc.Selection.PickObjects(Autodesk.Revit.UI.Selection.ObjectType.Element);
+            CurveArray ac = new CurveArray();
+
+            foreach (Reference item in refs)
+            {
+                Element e = m_doc.GetElement(item.ElementId);
+                if(e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming)
+                {
+                    LocationCurve lc  = (e as FamilyInstance).Location as LocationCurve;
+                    Curve c = lc.Curve;
+                    Autodesk.Revit.DB.Line exLine = Lib.GetExtentionLine(c, 1500/304.8);
+                    ac.Append(exLine);
+                }
+            }
+
+            List<IList<CurveLoop>> curves1 = new List<IList<CurveLoop>>();
+
+            using (TransactionGroup transGroup = new TransactionGroup(m_doc, "Create"))
+            {
+                transGroup.Start();
+
+                using(Transaction trans = new Transaction(m_doc, "C"))
+                {
+                    trans.Start();
+                    ModelCurveArray ma = m_doc.Create.NewRoomBoundaryLines(m_doc.ActiveView.SketchPlane, ac, m_doc.ActiveView);
+                    trans.Commit();
+                }
+                using(Transaction trans = new Transaction(m_doc, "efef"))
+                {
+                    trans.Start();
+                    PlanTopology pt = m_doc.get_PlanTopology(m_doc.ActiveView.GenLevel);
+                    foreach (PlanCircuit pc in pt.Circuits)
+                    {
+                        if(!pc.IsRoomLocated)
+                        {
+                            Room r = m_doc.Create.NewRoom(null, pc);
+                            CurveLoop cl = new CurveLoop();
+                            IList<IList<BoundarySegment>> loops = r.GetBoundarySegments(new SpatialElementBoundaryOptions());
+                            if(loops.Count > 0)
+                            {
+                                IList<BoundarySegment> pp = loops.First();
+                                foreach (BoundarySegment item in pp)
+                                {
+                                    cl.Append(item.GetCurve()); 
+                                }
+                            }
+
+                            IList<CurveLoop> cc = new List<CurveLoop>();
+                            cc.Add(cl);
+                            curves1.Add(cc);
+                        }
+                    }
+
+                    trans.Commit();
+                }
+
+
+                transGroup.RollBack();
+            }
+
+            using (Transaction trans = new Transaction(m_doc, "Floor"))
+            {
+                trans.Start();
+
+                foreach (IList<CurveLoop> item in curves1)
+                {
+                    Floor f = Floor.Create(m_doc, item, new FilteredElementCollector(m_doc).OfCategory(BuiltInCategory.OST_Floors).OfClass(typeof(FloorType)).FirstElementId(), (m_doc.ActiveView.GenLevel).Id);
+                }
+
+                trans.Commit();
+            }
         }
     }
 }
