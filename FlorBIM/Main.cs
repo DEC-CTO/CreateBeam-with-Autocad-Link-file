@@ -86,5 +86,10 @@ namespace FlorBIM
         {
             MakeRequest(RequestId.CreateDeck);
         }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            MakeRequest(RequestId.changename);
+        }
     }
 }

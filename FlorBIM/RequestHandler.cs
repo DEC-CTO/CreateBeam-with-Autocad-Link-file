@@ -70,6 +70,11 @@ namespace FlorBIM
                             _CreateDeck(uiapp);
                             break;
                         }
+                    case RequestId.changename:
+                        {
+                            _changename(uiapp);
+                            break;
+                        }
                 }
             }
             finally
@@ -231,11 +236,11 @@ namespace FlorBIM
             foreach (Reference item in refs)
             {
                 Element e = m_doc.GetElement(item.ElementId);
-                if(e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming)
+                if (e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming)
                 {
-                    LocationCurve lc  = (e as FamilyInstance).Location as LocationCurve;
+                    LocationCurve lc = (e as FamilyInstance).Location as LocationCurve;
                     Curve c = lc.Curve;
-                    Autodesk.Revit.DB.Line exLine = Lib.GetExtentionLine(c, 1500/304.8);
+                    Autodesk.Revit.DB.Line exLine = Lib.GetExtentionLine(c, 1500 / 304.8);
                     ac.Append(exLine);
                 }
             }
@@ -246,29 +251,29 @@ namespace FlorBIM
             {
                 transGroup.Start();
 
-                using(Transaction trans = new Transaction(m_doc, "C"))
+                using (Transaction trans = new Transaction(m_doc, "C"))
                 {
                     trans.Start();
                     ModelCurveArray ma = m_doc.Create.NewRoomBoundaryLines(m_doc.ActiveView.SketchPlane, ac, m_doc.ActiveView);
                     trans.Commit();
                 }
-                using(Transaction trans = new Transaction(m_doc, "efef"))
+                using (Transaction trans = new Transaction(m_doc, "efef"))
                 {
                     trans.Start();
                     PlanTopology pt = m_doc.get_PlanTopology(m_doc.ActiveView.GenLevel);
                     foreach (PlanCircuit pc in pt.Circuits)
                     {
-                        if(!pc.IsRoomLocated)
+                        if (!pc.IsRoomLocated)
                         {
                             Room r = m_doc.Create.NewRoom(null, pc);
                             CurveLoop cl = new CurveLoop();
                             IList<IList<BoundarySegment>> loops = r.GetBoundarySegments(new SpatialElementBoundaryOptions());
-                            if(loops.Count > 0)
+                            if (loops.Count > 0)
                             {
                                 IList<BoundarySegment> pp = loops.First();
                                 foreach (BoundarySegment item in pp)
                                 {
-                                    cl.Append(item.GetCurve()); 
+                                    cl.Append(item.GetCurve());
                                 }
                             }
 
@@ -298,6 +303,64 @@ namespace FlorBIM
 
                 //
             }
+        }
+
+        private void _changename(UIApplication uiapp)
+        {
+            UIDocument uidoc = uiapp.ActiveUIDocument;
+            m_uidoc = uidoc;
+            m_doc = m_uidoc.Document;
+            Autodesk.Revit.ApplicationServices.Application app = uiapp.Application;
+
+
+            FilteredElementCollector col = new FilteredElementCollector(m_doc).OfCategory(BuiltInCategory.OST_StructuralFraming).OfClass(typeof(FamilySymbol));
+
+            using(Transaction trans = new Transaction(m_doc, "Efef"))
+            {
+                trans.Start();
+                foreach (FamilySymbol item in col)
+                {
+                    ElementType et = item as ElementType;
+                    
+                    string size = "";
+
+                    Parameter pram = item.LookupParameter("Width");
+                    Parameter pram1 = item.LookupParameter("Height");
+                    Parameter pram2 = item.LookupParameter("R1");
+                    Parameter pram3 = item.LookupParameter("R2");
+                    Parameter pram4 = item.LookupParameter("R3");
+
+                    if(pram != null)
+                    {
+                        size += pram.AsValueString()+"x";
+                    }
+                    if (pram1 != null)
+                    {
+                        size += pram1.AsValueString()+"x";
+                    }
+                    if (pram2 != null)
+                    {
+                        size += pram2.AsValueString() + "x";
+                    }
+                    if (pram3 != null)
+                    {
+                        size += pram3.AsValueString() + "x";
+                    }
+                    if (pram4 != null)
+                    {
+                        size += pram4.AsValueString();
+                    }
+
+                    string name = item.Name;
+                    string allname = "S_" + name + "@@" + size;
+
+                    et.Name = allname;  
+                }
+                trans.Commit();
+            }
+
+
+
         }
     }
 }
