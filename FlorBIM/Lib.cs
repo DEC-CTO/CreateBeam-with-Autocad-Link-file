@@ -75,5 +75,28 @@ namespace FlorBIM
             return exLine;
 
         }
+
+        public static Autodesk.Revit.DB.Line ConverRevitLine(ACadSharp.Entities.Line line)
+        {
+            Autodesk.Revit.DB.Line returnline = null;
+
+            try
+            {
+                CSMath.XYZ p1 = line.StartPoint;
+                CSMath.XYZ p2 = line.EndPoint;
+
+                XYZ pp1 = new XYZ(p1.X, p1.Y, p1.Z) / 304.8;
+                XYZ pp2 = new XYZ(p2.X, p2.Y, p2.Z) / 304.8;
+
+                returnline = Autodesk.Revit.DB.Line.CreateBound(pp1, pp2);
+
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+
+            return returnline;
+        }
     }
 }

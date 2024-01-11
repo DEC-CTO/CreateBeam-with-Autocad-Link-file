@@ -75,6 +75,12 @@ namespace FlorBIM
                             _changename(uiapp);
                             break;
                         }
+                    case RequestId.gang:
+                        {
+                            _gang(uiapp);
+                            break;
+                        }
+
                 }
             }
             finally
@@ -83,8 +89,7 @@ namespace FlorBIM
             }
             return;
         }
-
-        private void _count(UIApplication uiapp)
+        private void _gang(UIApplication uiapp)
         {
             UIDocument uidoc = uiapp.ActiveUIDocument;
             m_uidoc = uidoc;
@@ -92,41 +97,106 @@ namespace FlorBIM
             Autodesk.Revit.ApplicationServices.Application app = uiapp.Application;
             Autodesk.Revit.Creation.Application CreationApp = app.Create;
 
+
             List<string> filepath = Lib.GetDWGLink(m_doc);
+            CadDocument docCad = DwgReader.Read(filepath[0]);
+            List<Entity> entities = new List<Entity>(docCad.Entities);
 
-            CadDocument doccad = DwgReader.Read(filepath[0]);
-            List<Entity> all = new List<Entity>(doccad.Entities);
+            FilteredElementCollector col = new FilteredElementCollector(m_doc).OfCategory(BuiltInCategory.OST_StructuralFraming).OfClass(typeof(FamilyInstance));
+            Dictionary<FamilyInstance, XYZ> dixdix = new Dictionary<FamilyInstance, XYZ>();
 
-            List<string> BeamName = new List<string>();
-            foreach (Entity ent in all)
+            List<compareData> cd = new List<compareData>();
+
+            foreach (FamilyInstance item in col)
             {
-                ACadSharp.ObjectType obj = ent.ObjectType;
-                if (obj == ACadSharp.ObjectType.TEXT)
+                if(item.Category.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming)
                 {
-                    TextEntity tn = ent as TextEntity;
-                    if (tn != null)
-                    {
-                        string name = tn.Value;
-                        BeamName.Add(name);
-                    }
+                    LocationCurve lc = item.Location as LocationCurve;
+                    Curve c = lc.Curve;
+                    XYZ mid = c.Evaluate(0.5, true);
+
+                    dixdix.Add(item,mid);
                 }
             }
 
-            BeamName = BeamName.Distinct().ToList();
-            FamilySymbol fs = new FilteredElementCollector(m_doc).OfCategory(BuiltInCategory.OST_StructuralFraming).OfClass(typeof(FamilySymbol)).FirstElement() as FamilySymbol;
-            if (fs != null)
+            foreach (Entity item in entities)
             {
-                using (Transaction tran = new Transaction(m_doc, "Insert Beam Type"))
+                ACadSharp.ObjectType obj = item.ObjectType;
+                if(obj == ACadSharp.ObjectType.LINE)
                 {
-                    tran.Start();
-                    foreach (string item in BeamName)
+                    Autodesk.Revit.DB.Line line = Lib.ConverRevitLine(item as ACadSharp.Entities.Line);
+                    if (line == null) continue;
+                    if(line.Length * 304.8 < 801)
                     {
-                        fs.Duplicate(item);
+                        compareData cd1 = new compareData();
+                        cd1.m_mid = line.Evaluate(0.5, true);
+                        cd1.m_infor = "Pin";
+                        cd.Add(cd1);
                     }
-                    tran.Commit();
+                }
+
+                else if(obj == ACadSharp.ObjectType.LWPOLYLINE)
+                {
+                    ACadSharp.Entities.LwPolyline ee = item as ACadSharp.Entities.LwPolyline;
+                    IEnumerable<Entity> eee = ee.Explode();
+                    Autodesk.Revit.DB.Line line = Lib.ConverRevitLine(eee.First() as ACadSharp.Entities.Line);
+                    if (line == null) continue;
+
+                    compareData cd1 = new compareData();
+                    cd1.m_mid = line.Evaluate(0.5, true);
+                    cd1.m_infor = "Moment";
+                    cd.Add(cd1);
+
+                }
+            }
+
+
+
+        }
+
+        private void _count(UIApplication uiapp)
+    {
+        UIDocument uidoc = uiapp.ActiveUIDocument;
+        m_uidoc = uidoc;
+        m_doc = m_uidoc.Document;
+        Autodesk.Revit.ApplicationServices.Application app = uiapp.Application;
+        Autodesk.Revit.Creation.Application CreationApp = app.Create;
+
+        List<string> filepath = Lib.GetDWGLink(m_doc);
+
+        CadDocument doccad = DwgReader.Read(filepath[0]);
+        List<Entity> all = new List<Entity>(doccad.Entities);
+
+        List<string> BeamName = new List<string>();
+        foreach (Entity ent in all)
+        {
+            ACadSharp.ObjectType obj = ent.ObjectType;
+            if (obj == ACadSharp.ObjectType.TEXT)
+            {
+                TextEntity tn = ent as TextEntity;
+                if (tn != null)
+                {
+                    string name = tn.Value;
+                    BeamName.Add(name);
                 }
             }
         }
+
+        BeamName = BeamName.Distinct().ToList();
+        FamilySymbol fs = new FilteredElementCollector(m_doc).OfCategory(BuiltInCategory.OST_StructuralFraming).OfClass(typeof(FamilySymbol)).FirstElement() as FamilySymbol;
+        if (fs != null)
+        {
+            using (Transaction tran = new Transaction(m_doc, "Insert Beam Type"))
+            {
+                tran.Start();
+                foreach (string item in BeamName)
+                {
+                    fs.Duplicate(item);
+                }
+                tran.Commit();
+            }
+        }
+    }
 
         private void _CreateBeam(UIApplication uiapp)
         {
@@ -362,5 +432,11 @@ namespace FlorBIM
 
 
         }
+    }
+
+    public class compareData
+    {
+        public XYZ m_mid { get; set; }
+        public string m_infor { get; set; }
     }
 }

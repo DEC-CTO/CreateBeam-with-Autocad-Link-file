@@ -91,5 +91,10 @@ namespace FlorBIM
         {
             MakeRequest(RequestId.changename);
         }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            MakeRequest(RequestId.gang);
+        }
     }
 }
