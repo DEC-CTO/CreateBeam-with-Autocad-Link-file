@@ -80,7 +80,11 @@ namespace FlorBIM
                             _gang(uiapp);
                             break;
                         }
-
+                    case RequestId.EditTopo:
+                        {
+                            _EditTopo(uiapp);
+                            break;
+                        }
                 }
             }
             finally
@@ -109,24 +113,24 @@ namespace FlorBIM
 
             foreach (FamilyInstance item in col)
             {
-                if(item.Category.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming)
+                if (item.Category.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming)
                 {
                     LocationCurve lc = item.Location as LocationCurve;
                     Curve c = lc.Curve;
                     XYZ mid = c.Evaluate(0.5, true);
 
-                    dixdix.Add(item,mid);
+                    dixdix.Add(item, mid);
                 }
             }
 
             foreach (Entity item in entities)
             {
                 ACadSharp.ObjectType obj = item.ObjectType;
-                if(obj == ACadSharp.ObjectType.LINE)
+                if (obj == ACadSharp.ObjectType.LINE)
                 {
                     Autodesk.Revit.DB.Line line = Lib.ConverRevitLine(item as ACadSharp.Entities.Line);
                     if (line == null) continue;
-                    if(line.Length * 304.8 < 801)
+                    if (line.Length * 304.8 < 801)
                     {
                         compareData cd1 = new compareData();
                         cd1.m_mid = line.Evaluate(0.5, true);
@@ -135,7 +139,7 @@ namespace FlorBIM
                     }
                 }
 
-                else if(obj == ACadSharp.ObjectType.LWPOLYLINE)
+                else if (obj == ACadSharp.ObjectType.LWPOLYLINE)
                 {
                     ACadSharp.Entities.LwPolyline ee = item as ACadSharp.Entities.LwPolyline;
                     IEnumerable<Entity> eee = ee.Explode();
@@ -155,48 +159,48 @@ namespace FlorBIM
         }
 
         private void _count(UIApplication uiapp)
-    {
-        UIDocument uidoc = uiapp.ActiveUIDocument;
-        m_uidoc = uidoc;
-        m_doc = m_uidoc.Document;
-        Autodesk.Revit.ApplicationServices.Application app = uiapp.Application;
-        Autodesk.Revit.Creation.Application CreationApp = app.Create;
-
-        List<string> filepath = Lib.GetDWGLink(m_doc);
-
-        CadDocument doccad = DwgReader.Read(filepath[0]);
-        List<Entity> all = new List<Entity>(doccad.Entities);
-
-        List<string> BeamName = new List<string>();
-        foreach (Entity ent in all)
         {
-            ACadSharp.ObjectType obj = ent.ObjectType;
-            if (obj == ACadSharp.ObjectType.TEXT)
+            UIDocument uidoc = uiapp.ActiveUIDocument;
+            m_uidoc = uidoc;
+            m_doc = m_uidoc.Document;
+            Autodesk.Revit.ApplicationServices.Application app = uiapp.Application;
+            Autodesk.Revit.Creation.Application CreationApp = app.Create;
+
+            List<string> filepath = Lib.GetDWGLink(m_doc);
+
+            CadDocument doccad = DwgReader.Read(filepath[0]);
+            List<Entity> all = new List<Entity>(doccad.Entities);
+
+            List<string> BeamName = new List<string>();
+            foreach (Entity ent in all)
             {
-                TextEntity tn = ent as TextEntity;
-                if (tn != null)
+                ACadSharp.ObjectType obj = ent.ObjectType;
+                if (obj == ACadSharp.ObjectType.TEXT)
                 {
-                    string name = tn.Value;
-                    BeamName.Add(name);
+                    TextEntity tn = ent as TextEntity;
+                    if (tn != null)
+                    {
+                        string name = tn.Value;
+                        BeamName.Add(name);
+                    }
+                }
+            }
+
+            BeamName = BeamName.Distinct().ToList();
+            FamilySymbol fs = new FilteredElementCollector(m_doc).OfCategory(BuiltInCategory.OST_StructuralFraming).OfClass(typeof(FamilySymbol)).FirstElement() as FamilySymbol;
+            if (fs != null)
+            {
+                using (Transaction tran = new Transaction(m_doc, "Insert Beam Type"))
+                {
+                    tran.Start();
+                    foreach (string item in BeamName)
+                    {
+                        fs.Duplicate(item);
+                    }
+                    tran.Commit();
                 }
             }
         }
-
-        BeamName = BeamName.Distinct().ToList();
-        FamilySymbol fs = new FilteredElementCollector(m_doc).OfCategory(BuiltInCategory.OST_StructuralFraming).OfClass(typeof(FamilySymbol)).FirstElement() as FamilySymbol;
-        if (fs != null)
-        {
-            using (Transaction tran = new Transaction(m_doc, "Insert Beam Type"))
-            {
-                tran.Start();
-                foreach (string item in BeamName)
-                {
-                    fs.Duplicate(item);
-                }
-                tran.Commit();
-            }
-        }
-    }
 
         private void _CreateBeam(UIApplication uiapp)
         {
@@ -385,13 +389,13 @@ namespace FlorBIM
 
             FilteredElementCollector col = new FilteredElementCollector(m_doc).OfCategory(BuiltInCategory.OST_StructuralFraming).OfClass(typeof(FamilySymbol));
 
-            using(Transaction trans = new Transaction(m_doc, "Efef"))
+            using (Transaction trans = new Transaction(m_doc, "Efef"))
             {
                 trans.Start();
                 foreach (FamilySymbol item in col)
                 {
                     ElementType et = item as ElementType;
-                    
+
                     string size = "";
 
                     Parameter pram = item.LookupParameter("Width");
@@ -400,13 +404,13 @@ namespace FlorBIM
                     Parameter pram3 = item.LookupParameter("R2");
                     Parameter pram4 = item.LookupParameter("R3");
 
-                    if(pram != null)
+                    if (pram != null)
                     {
-                        size += pram.AsValueString()+"x";
+                        size += pram.AsValueString() + "x";
                     }
                     if (pram1 != null)
                     {
-                        size += pram1.AsValueString()+"x";
+                        size += pram1.AsValueString() + "x";
                     }
                     if (pram2 != null)
                     {
@@ -424,7 +428,7 @@ namespace FlorBIM
                     string name = item.Name;
                     string allname = "S_" + name + "@@" + size;
 
-                    et.Name = allname;  
+                    et.Name = allname;
                 }
                 trans.Commit();
             }
@@ -432,11 +436,124 @@ namespace FlorBIM
 
 
         }
+
+        private void _EditTopo(UIApplication uiapp)
+        {
+            UIDocument uidoc = uiapp.ActiveUIDocument;
+            m_uidoc = uidoc;
+            m_doc = m_uidoc.Document;
+            Autodesk.Revit.ApplicationServices.Application app = uiapp.Application;
+            Autodesk.Revit.Creation.Application CreationApp = app.Create;
+
+            IList<Reference> rrs = uidoc.Selection.PickObjects(Autodesk.Revit.UI.Selection.ObjectType.Element);
+            List<XYZ> ptss = new List<XYZ>();
+
+            foreach (Reference item in rrs)
+            {
+                Floor f = m_doc.GetElement(item.ElementId) as Floor;
+                IList<Reference> fsf = HostObjectUtils.GetBottomFaces(f);
+                foreach (Reference item2 in fsf)
+                {
+                    Face ff = m_doc.GetElement(item2.ElementId).GetGeometryObjectFromReference(item2) as Face;
+                    IList<CurveLoop> ea = ff.GetEdgesAsCurveLoops();
+
+                    foreach (CurveLoop CurveLoop in ea)
+                    {
+                        foreach (Curve curve in CurveLoop)
+                        {
+                            IList<XYZ> list = curve.Tessellate();
+                            ptss.AddRange(list);
+                        }
+                    }
+                }
+            }
+
+            var sort = ptss.GroupBy(x => new { X = Math.Round(x.X, 5, MidpointRounding.AwayFromZero), Y = Math.Round(x.Y, 5, MidpointRounding.AwayFromZero) }).Select(g => g.First()).ToList();
+            EditTopo(sort.ToArray());
+        }
+
+        public void EditTopo(XYZ[] ptss)
+        {
+            TopographySurface target = m_doc.GetElement(m_uidoc.Selection.PickObject(Autodesk.Revit.UI.Selection.ObjectType.Element).ElementId) as TopographySurface;
+            FailureHandler fh = new FailureHandler();
+
+            List<XYZ> list = new List<XYZ>();
+            foreach (XYZ item in ptss)
+            {
+                if(target.ContainsPoint(item) == false)
+                {
+                    list.Add(item);
+                }
+            }
+
+            using(TopographyEditScope Editscope = new TopographyEditScope(m_doc, "efefe"))
+            {
+                Editscope.Start(target.Id);
+                using(Transaction trans = new Transaction(m_doc, "efef"))
+                {
+                    trans.Start();
+                    target.AddPoints(list);
+                    trans.Commit();
+                }
+
+                Editscope.Commit(fh);
+            }
+        }
     }
 
     public class compareData
     {
         public XYZ m_mid { get; set; }
         public string m_infor { get; set; }
+    }
+    public class FailureHandler : IFailuresPreprocessor
+    {
+        public string ErroMessage { set; get; }
+        public string ErroSeverity { set; get; }
+
+        public FailureHandler()
+        {
+            ErroMessage = "";
+            ErroSeverity = "";
+        }
+
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor failuresAccessor)
+        {
+            IList<FailureMessageAccessor> failureMessages = failuresAccessor.GetFailureMessages();
+            foreach (FailureMessageAccessor failureMessageAccessor in failureMessages)
+            {
+                FailureDefinitionId id = failureMessageAccessor.GetFailureDefinitionId();
+
+                try
+                {
+                    ErroMessage = failureMessageAccessor.GetDescriptionText();
+                }
+                catch
+                {
+                    ErroMessage = "Unknown Error";
+                }
+
+                try
+                {
+                    FailureSeverity failureSeverity = failureMessageAccessor.GetSeverity();
+                    ErroSeverity = failureSeverity.ToString();
+                    if (failureSeverity == FailureSeverity.Warning || failureSeverity == FailureSeverity.Error)
+                    {
+                        failuresAccessor.DeleteWarning(failureMessageAccessor);
+                    }
+
+                    else
+                    {
+                        return FailureProcessingResult.ProceedWithRollBack;
+                    }
+                }
+                catch
+                {
+
+                }
+            }
+
+            return FailureProcessingResult.Continue;
+        }
     }
 }

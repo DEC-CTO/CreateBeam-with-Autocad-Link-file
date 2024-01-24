@@ -10,7 +10,8 @@ namespace FlorBIM
         CreateBeam =2,
         CreateDeck = 3,
         changename = 4,
-        gang = 5
+        gang = 5,
+        EditTopo = 6
 
     }
 

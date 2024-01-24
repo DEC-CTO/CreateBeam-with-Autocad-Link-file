@@ -96,5 +96,10 @@ namespace FlorBIM
         {
             MakeRequest(RequestId.gang);
         }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            MakeRequest(RequestId.EditTopo);
+        }
     }
 }
